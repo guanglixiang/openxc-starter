@@ -1,27 +1,51 @@
 package com.openxc.openxcstarter;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.http.ParseException;
+
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.openxc.VehicleManager;
+import com.openxc.measurements.EngineSpeed;
 import com.openxc.measurements.Measurement;
 import com.openxc.measurements.UnrecognizedMeasurementTypeException;
-import com.openxc.measurements.EngineSpeed;
+import com.openxc.openxcstarter.http.HttpUtils;
 import com.openxc.remote.VehicleServiceException;
 
 public class StarterActivity extends Activity {
     private static final String TAG = "StarterActivity";
 
+    private static final String POST_URL = "http://test/_set_data";
+    private static final int MSG_POST_DATA = 0X01;
+
     private VehicleManager mVehicleManager;
-    private TextView mEngineSpeedView;
+
+    private TextView mAcceleratorTextView;
+    private EditText mAcceleratorViewEt;
+    private Button mSumbitBtn;
+    private Looper mSendLooper;
+    private SendDataHandler msendDataHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,7 +53,24 @@ public class StarterActivity extends Activity {
         setContentView(R.layout.activity_starter);
         // grab a reference to the engine speed text object in the UI, so we can
         // manipulate its value later from Java code
-        mEngineSpeedView = (TextView) findViewById(R.id.vehicle_speed);
+        mAcceleratorTextView = (TextView) findViewById(R.id.show_accelerator);
+
+        mAcceleratorViewEt = (EditText) findViewById(R.id.accelerator);
+
+        HandlerThread sendHandlerThread = new HandlerThread("send_data");
+        sendHandlerThread.start();
+
+        mSendLooper = sendHandlerThread.getLooper();
+        msendDataHandler = new SendDataHandler(mSendLooper);
+
+        findViewById(R.id.sumbit).setOnClickListener(new OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                msendDataHandler.sendEmptyMessage(MSG_POST_DATA);
+            }
+        });
+
     }
 
     @Override
@@ -37,12 +78,13 @@ public class StarterActivity extends Activity {
         super.onPause();
         // When the activity goes into the background or exits, we want to make
         // sure to unbind from the service to avoid leaking memory
-        if(mVehicleManager != null) {
+        if (mVehicleManager != null) {
             Log.i(TAG, "Unbinding from Vehicle Manager");
             try {
                 // Remember to remove your listeners, in typical Android
                 // fashion.
-                mVehicleManager.removeListener(EngineSpeed.class, mSpeedListener);
+                mVehicleManager.removeListener(EngineSpeed.class,
+                        mSpeedListener);
             } catch (VehicleServiceException e) {
                 e.printStackTrace();
             }
@@ -56,14 +98,15 @@ public class StarterActivity extends Activity {
         super.onResume();
         // When the activity starts up or returns from the background,
         // re-connect to the VehicleManager so we can receive updates.
-        if(mVehicleManager == null) {
+        if (mVehicleManager == null) {
             Intent intent = new Intent(this, VehicleManager.class);
             bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         }
     }
 
-    /* This is an OpenXC measurement listener object - the type is recognized
-     * by the VehicleManager as something that can receive measurement updates.
+    /*
+     * This is an OpenXC measurement listener object - the type is recognized by
+     * the VehicleManager as something that can receive measurement updates.
      * Later in the file, we'll ask the VehicleManager to call the receive()
      * function here whenever a new EngineSpeed value arrives.
      */
@@ -81,15 +124,17 @@ public class StarterActivity extends Activity {
                     // Finally, we've got a new value and we're running on the
                     // UI thread - we set the text of the EngineSpeed view to
                     // the latest value
-                    mEngineSpeedView.setText("Engine speed (RPM): "
-                            + speed.getValue().doubleValue());
+                    mAcceleratorTextView.setText(getString(
+                            R.string.accelerator, mAcceleratorViewEt.getText()
+                                    .toString()));
                 }
             });
         }
     };
 
     private ServiceConnection mConnection = new ServiceConnection() {
-        // Called when the connection with the VehicleManager service is established, i.e. bound.
+        // Called when the connection with the VehicleManager service is
+        // established, i.e. bound.
         public void onServiceConnected(ComponentName className, IBinder service) {
             Log.i(TAG, "Bound to VehicleManager");
             // When the VehicleManager starts up, we store a reference to it
@@ -123,5 +168,38 @@ public class StarterActivity extends Activity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.starter, menu);
         return true;
+    }
+
+    class SendDataHandler extends Handler {
+        public SendDataHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+            case MSG_POST_DATA:
+                String acceleratorString = mAcceleratorViewEt.getText()
+                        .toString();
+                if (!TextUtils.isEmpty(acceleratorString)) {
+                    Map<String, String> map = new HashMap<String, String>();
+                    map.put("name", "accelerator");
+                    map.put("value", acceleratorString);
+                    try {
+                        HttpUtils.sendPost(POST_URL, map);
+                    } catch (ParseException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+                break;
+
+            default:
+                break;
+            }
+        }
     }
 }

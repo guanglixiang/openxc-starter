@@ -8,16 +8,34 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".MainActivity" >
  
+    <LinearLayout 
+        android:layout_height="wrap_content"
+	    android:layout_width="match_parent"
+	    android:orientation="horizontal">
+	    
+        <TextView
+        android:layout_height="wrap_content"
+	    android:layout_width="wrap_content" 
+	    android:text="@string/input_accelerator"/>"
+	<EditText 
+	    android:id="@+id/accelerator"
+	    android:layout_height="wrap_content"
+	    android:layout_width="match_parent"
+	    android:inputType="number"
+	    />
+	
+	</LinearLayout>"
+	<Button 
+        android:id="@+id/sumbit"
+        android:layout_height="wrap_content"
+	    android:layout_width="match_parent"
+	    android:layout_alignParentBottom="true"
+	    android:text="@string/sumbit"
+	    />
     <TextView
-        android:id="@+id/textView1"
+        android:layout_above="@id/sumbit"
+        android:text="@string/accelerator"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/hello_world" />
-    
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/textView1"
-        android:id="@+id/vehicle_speed" />
-    
+        android:id="@+id/show_accelerator" />
 </RelativeLayout>

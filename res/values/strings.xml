@@ -4,5 +4,8 @@
     <string name="app_name">OpenXC Starter Application</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
-
+    
+    <string name="accelerator">Current accelerator is %1$s</string>
+	<string name="input_accelerator">Accelerator</string>
+	<string name="sumbit">Sumbit</string>
 </resources>
